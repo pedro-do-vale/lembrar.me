@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "VoiceNoteWatch"
+rootProject.name = "lembrar.me"
 include ':app'
