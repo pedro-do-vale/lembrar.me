@@ -38,7 +38,12 @@ cd VoiceNoteWatch
 
 ## Continuous deployment
 
-Pushing changes under `VoiceNoteWeb/` to `main` builds the site and deploys it to Firebase Hosting project `voice-notes-54e1a`.
+Pushing changes under `VoiceNoteWeb/` to `main` builds the site and deploys it to Firebase Hosting:
+
+- Primary: https://lembrarme.web.app
+- Legacy: https://voice-notes-54e1a.web.app
+
+Both sites receive the same build (CI command unchanged).
 
 Required GitHub Actions secret:
 
