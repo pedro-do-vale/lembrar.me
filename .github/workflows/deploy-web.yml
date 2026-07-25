@@ -34,10 +34,6 @@ jobs:
         run: npm run build
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_VOICE_NOTES_54E1A }}
-          channelId: live
-          projectId: voice-notes-54e1a
-          entryPoint: VoiceNoteWeb
+        run: npx firebase-tools@13 deploy --only hosting --project voice-notes-54e1a --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

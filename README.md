@@ -42,4 +42,4 @@ Pushing changes under `VoiceNoteWeb/` to `main` builds the site and deploys it t
 
 Required GitHub Actions secret:
 
-- `FIREBASE_SERVICE_ACCOUNT_VOICE_NOTES_54E1A` — JSON key of a Firebase/Google service account with Hosting Admin access
+- `FIREBASE_TOKEN` — CI token from `firebase login:ci` (Firebase Hosting deploy)
