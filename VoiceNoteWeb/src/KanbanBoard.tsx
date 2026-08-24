@@ -1,22 +1,7 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Trash2, Edit3, Clock, Bell, CheckCircle, Circle, Save, X, Plus, GripVertical } from 'lucide-react';
-
-interface Todo {
-  id: string;
-  text: string;
-  date: string;
-  timestamp: number;
-  archived?: boolean;
-  reminderAt?: number | null;
-  listId?: string | null;
-}
-
-interface BoardList {
-  id: string;
-  title: string;
-  order: number;
-}
+import type { BoardList, Todo } from './types';
 
 interface KanbanProps {
   todos: Todo[];
@@ -148,7 +133,7 @@ export default function KanbanBoard({
                                     className="edit-input"
                                     value={editText}
                                     onChange={(e) => setEditText(e.target.value)}
-                                    placeholder="Nome da Tarefa"
+                                    placeholder="Nome da missão"
                                     autoFocus
                                     style={{ width: '100%' }}
                                   />
@@ -211,7 +196,7 @@ export default function KanbanBoard({
               <input 
                 type="text" 
                 autoFocus 
-                placeholder="Nome da Tabela..." 
+              placeholder="Nome da região..."
                 className="edit-input"
                 value={newListTitle}
                 onChange={(e) => setNewListTitle(e.target.value)}
@@ -223,7 +208,7 @@ export default function KanbanBoard({
             </form>
           ) : (
             <button className="add-list-btn" onClick={() => setIsAddingList(true)}>
-              <Plus size={20} /> Nova Lista
+              <Plus size={20} /> Nova região
             </button>
           )}
         </div>
