@@ -84,7 +84,21 @@ h3 { font-size: 1.35rem; }
 .hud-row { display: flex; justify-content: space-between; gap: .8rem; margin-bottom: .35rem; color: #5d4937; font-size: .78rem; font-weight: 800; }
 .hud-row span:first-child, .hud-stat { display: flex; align-items: center; gap: .35rem; }
 .xp-track { overflow: hidden; height: 11px; background: #c9b287; border: 1px solid #775b3d; box-shadow: inset 0 1px 2px rgba(50, 30, 15, .25); }
-.xp-track span { display: block; height: 100%; background: linear-gradient(90deg, #3c7953, #72a767); transition-property: width; transition-timing-function: ease; }
+.xp-track span { position: relative; display: block; overflow: hidden; height: 100%; background: linear-gradient(90deg, #3c7953, #72a767); transition-property: width; transition-timing-function: ease; }
+.xp-track span::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, #d89b28, #ffe06a); opacity: 0; pointer-events: none; }
+.xp-track span.gaining-xp::before { animation: xp-gain-color var(--xp-gain-duration, 3118ms) ease-in-out forwards; }
+.xp-track span::after { content: ''; position: absolute; inset: 0; z-index: 2; width: 42%; background: linear-gradient(105deg, transparent 0%, rgba(255, 248, 196, .18) 30%, rgba(255, 255, 230, .82) 50%, rgba(255, 248, 196, .18) 70%, transparent 100%); filter: blur(.4px); transform: translateX(-150%) skewX(-12deg); animation: xp-shimmer 3.8s ease-in-out infinite; pointer-events: none; }
+@keyframes xp-gain-color {
+  0% { opacity: 0; }
+  12%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes xp-shimmer {
+  0%, 18% { transform: translateX(-150%) skewX(-12deg); opacity: 0; }
+  24% { opacity: 1; }
+  52% { transform: translateX(340%) skewX(-12deg); opacity: 1; }
+  58%, 100% { transform: translateX(340%) skewX(-12deg); opacity: 0; }
+}
 .hud-stat { color: #624a34; font-size: .82rem; white-space: nowrap; }
 .hud-stat svg { color: var(--rust); }
 .sync-badge { position: absolute; right: .65rem; bottom: -1.35rem; background: #3e2c23; color: #f7e6c1; border-radius: 0 0 5px 5px; padding: .16rem .55rem; font-size: .68rem; }
@@ -255,5 +269,6 @@ h3 { font-size: 1.35rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .xp-track span::before, .xp-track span::after { display: none; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
