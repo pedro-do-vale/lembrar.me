@@ -29,9 +29,14 @@ describe.skipIf(!hasEmulator)('gamification transactions', () => {
     expect((await getDoc(doc(db, 'notes', 'legacy'))).data()?.gameRewardState).toBe('legacy');
 
     await updateDoc(doc(db, 'notes', 'future'), { archived: true });
-    expect(await service.awardMissionOnce('future')).toBe(true);
-    expect(await service.awardMissionOnce('future')).toBe(false);
+    expect(await service.awardMissionOnce('future')).toEqual({ awarded: true, leveledUp: false });
+    expect(await service.awardMissionOnce('future')).toEqual({ awarded: false, leveledUp: false });
     expect((await getDoc(service.profileRef)).data()).toMatchObject({ totalXp: 10, coins: 5 });
+
+    await updateDoc(service.profileRef, { totalXp: 90 });
+    await setDoc(doc(db, 'notes', 'level-up'), { text: 'Subir nível', archived: true, timestamp: 3, date: '' });
+    expect(await service.awardMissionOnce('level-up')).toEqual({ awarded: true, leveledUp: true });
+    expect((await getDoc(service.profileRef)).data()).toMatchObject({ totalXp: 100, coins: 10 });
   });
 
   it('rejects a purchase without enough coins and snapshots a successful one', async () => {

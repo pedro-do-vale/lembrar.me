@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MORE_EXP_DURATION_MS } from './audioManager';
+import { LEVEL_UP_DURATION_MS, MORE_EXP_DURATION_MS } from './audioManager';
 import GameHud from './GameHud';
 import type { GameProfile, RewardInventoryItem } from './types';
 
@@ -39,14 +39,44 @@ describe('GameHud', () => {
       id: 'solo', totalXp: 20, coins: 0, startedAt: 1,
       migrationComplete: true, updatedAt: 1,
     };
-    const { rerender } = render(<GameHud profile={baseProfile} inventory={[]} syncing={false} />);
+    const { container, rerender } = render(<GameHud profile={baseProfile} inventory={[]} syncing={false} />);
 
     rerender(<GameHud profile={{ ...baseProfile, totalXp: 30 }} inventory={[]} syncing={false} />);
 
     const fill = screen.getByLabelText('30 de 100 pontos para o próximo nível').firstElementChild;
+    const levelNumber = container.querySelector('.hud-level strong');
     expect(fill).toHaveClass('gaining-xp');
+    expect(levelNumber).toHaveClass('gaining-xp');
 
     act(() => vi.advanceTimersByTime(MORE_EXP_DURATION_MS));
     expect(fill).not.toHaveClass('gaining-xp');
+    expect(levelNumber).not.toHaveClass('gaining-xp');
+  });
+
+  it('changes the level number only at the white midpoint of a level-up', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const baseProfile: GameProfile = {
+      id: 'solo', totalXp: 90, coins: 0, startedAt: 1,
+      migrationComplete: true, updatedAt: 1,
+    };
+    const { container, rerender } = render(<GameHud profile={baseProfile} inventory={[]} syncing={false} />);
+
+    rerender(<GameHud profile={{ ...baseProfile, totalXp: 100 }} inventory={[]} syncing={false} />);
+
+    const levelNumber = container.querySelector('.hud-level strong');
+    expect(levelNumber).toHaveTextContent('1');
+    expect(levelNumber).toHaveClass('level-departing');
+
+    act(() => vi.advanceTimersByTime(Math.round(LEVEL_UP_DURATION_MS / 2)));
+    expect(levelNumber).toHaveTextContent('2');
+    expect(levelNumber).toHaveClass('level-arriving');
+
+    act(() => vi.advanceTimersByTime(LEVEL_UP_DURATION_MS - Math.round(LEVEL_UP_DURATION_MS / 2)));
+    expect(levelNumber).toHaveTextContent('2');
+    expect(levelNumber).not.toHaveClass('level-arriving');
   });
 });

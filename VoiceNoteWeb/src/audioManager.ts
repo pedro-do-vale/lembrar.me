@@ -4,6 +4,7 @@ const AUDIO_PATHS = {
   scratch: '/audio/scratch_sound_effect.mp3',
   reward: '/audio/more_exp_sound_effect.wav',
   levelUp: '/audio/level_up_sound_effect.wav',
+  pageTurn: '/audio/pageturn_sound_effect.mp3',
 } as const;
 
 const AMBIENT_SEQUENCE = [
@@ -22,10 +23,13 @@ export const MORE_EXP_DURATION_MS = 3118;
 export const LEVEL_UP_DURATION_MS = 2995;
 export const SCRATCH_DURATION_MS = 480;
 
-type Effect = 'scratch' | 'reward' | 'levelUp';
+type Effect = 'scratch' | 'reward' | 'levelUp' | 'pageTurn';
 
 class AudioManager {
   private ambientPlayers: [HTMLAudioElement, HTMLAudioElement] | null = null;
+  private ambientContext: AudioContext | null = null;
+  private ambientMasterGain: GainNode | null = null;
+  private ambientPlayerGains: [GainNode, GainNode] | null = null;
   private activePlayer = 0;
   private sequenceIndex = 0;
   private crossfading = false;
@@ -41,6 +45,7 @@ class AudioManager {
     this.wantsAmbient = true;
     this.ensureAmbientPlayers();
     const player = this.ambientPlayers![this.activePlayer];
+    if (this.ambientContext?.state === 'suspended') void this.ambientContext.resume().catch(() => undefined);
 
     void player.play()
       .then(() => this.removeUnlockListeners())
@@ -55,6 +60,10 @@ class AudioManager {
 
   setAmbientVolume(volume: number) {
     this.ambientVolume = Math.min(1, Math.max(0, volume));
+    if (this.ambientMasterGain && this.ambientContext) {
+      this.ambientMasterGain.gain.setValueAtTime(this.ambientVolume, this.ambientContext.currentTime);
+      return;
+    }
     if (!this.ambientPlayers || this.crossfading) return;
     this.ambientPlayers[this.activePlayer].volume = this.ambientVolume;
   }
@@ -62,7 +71,7 @@ class AudioManager {
   playEffect(effect: Effect) {
     if (typeof Audio === 'undefined') return;
 
-    if (effect !== 'scratch') {
+    if (effect === 'reward' || effect === 'levelUp') {
       this.exclusiveEffectQueue.push(effect);
       this.playNextExclusiveEffect();
       return;
@@ -109,9 +118,49 @@ class AudioManager {
       player.addEventListener('timeupdate', () => this.maybeCrossfade(player));
       player.addEventListener('ended', () => this.advanceWithoutFade(player));
     });
-    first.volume = this.ambientVolume;
-    second.volume = 0;
     this.ambientPlayers = [first, second];
+    this.ensureAmbientAudioGraph();
+    this.setAmbientPlayerMix(0, 1);
+    this.setAmbientPlayerMix(1, 0);
+  }
+
+  private ensureAmbientAudioGraph() {
+    if (!this.ambientPlayers || this.ambientContext) return;
+    const SafariAudioContext = (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextConstructor = window.AudioContext ?? SafariAudioContext;
+    if (!AudioContextConstructor) return;
+
+    try {
+      const context = new AudioContextConstructor();
+      const masterGain = context.createGain();
+      const firstGain = context.createGain();
+      const secondGain = context.createGain();
+      const firstSource = context.createMediaElementSource(this.ambientPlayers[0]);
+      const secondSource = context.createMediaElementSource(this.ambientPlayers[1]);
+      firstSource.connect(firstGain);
+      secondSource.connect(secondGain);
+      firstGain.connect(masterGain);
+      secondGain.connect(masterGain);
+      masterGain.connect(context.destination);
+      masterGain.gain.value = this.ambientVolume;
+      this.ambientContext = context;
+      this.ambientMasterGain = masterGain;
+      this.ambientPlayerGains = [firstGain, secondGain];
+      this.ambientPlayers.forEach((player) => { player.volume = 1; });
+    } catch {
+      this.ambientContext = null;
+      this.ambientMasterGain = null;
+      this.ambientPlayerGains = null;
+    }
+  }
+
+  private setAmbientPlayerMix(playerIndex: number, mix: number) {
+    if (!this.ambientPlayers) return;
+    if (this.ambientPlayerGains && this.ambientContext) {
+      this.ambientPlayerGains[playerIndex].gain.setValueAtTime(mix, this.ambientContext.currentTime);
+      return;
+    }
+    this.ambientPlayers[playerIndex].volume = this.ambientVolume * mix;
   }
 
   private maybeCrossfade(player: HTMLAudioElement) {
@@ -125,7 +174,7 @@ class AudioManager {
     this.sequenceIndex = (this.sequenceIndex + 1) % AMBIENT_SEQUENCE.length;
     player.src = AMBIENT_SEQUENCE[this.sequenceIndex];
     player.currentTime = 0;
-    player.volume = this.ambientVolume;
+    this.setAmbientPlayerMix(this.activePlayer, 1);
     if (this.wantsAmbient) void player.play().catch(() => this.attachUnlockListeners());
   }
 
@@ -139,7 +188,7 @@ class AudioManager {
     const nextSequenceIndex = (this.sequenceIndex + 1) % AMBIENT_SEQUENCE.length;
     incoming.src = AMBIENT_SEQUENCE[nextSequenceIndex];
     incoming.currentTime = 0;
-    incoming.volume = 0;
+    this.setAmbientPlayerMix(incomingIndex, 0);
 
     try {
       await incoming.play();
@@ -152,8 +201,8 @@ class AudioManager {
     const startedAt = performance.now();
     const fade = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / (CROSSFADE_SECONDS * 1000));
-      outgoing.volume = this.ambientVolume * (1 - progress);
-      incoming.volume = this.ambientVolume * progress;
+      this.setAmbientPlayerMix(this.activePlayer, 1 - progress);
+      this.setAmbientPlayerMix(incomingIndex, progress);
 
       if (progress < 1 && this.wantsAmbient) {
         requestAnimationFrame(fade);
@@ -162,7 +211,7 @@ class AudioManager {
 
       outgoing.pause();
       outgoing.currentTime = 0;
-      outgoing.volume = 0;
+      this.setAmbientPlayerMix(this.activePlayer, 0);
       this.activePlayer = incomingIndex;
       this.sequenceIndex = nextSequenceIndex;
       this.crossfading = false;

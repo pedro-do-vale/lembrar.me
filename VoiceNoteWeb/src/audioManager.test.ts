@@ -45,4 +45,14 @@ describe('audioManager', () => {
     expect(FakeAudio.instances[1].src).toContain('level_up_sound_effect.wav');
     expect(FakeAudio.instances[1].play).toHaveBeenCalledOnce();
   });
+
+  it('plays the page-turn effect as an independent interface sound', () => {
+    vi.stubGlobal('Audio', FakeAudio);
+
+    audioManager.playEffect('pageTurn');
+
+    expect(FakeAudio.instances).toHaveLength(1);
+    expect(FakeAudio.instances[0].src).toContain('pageturn_sound_effect.mp3');
+    expect(FakeAudio.instances[0].play).toHaveBeenCalledOnce();
+  });
 });

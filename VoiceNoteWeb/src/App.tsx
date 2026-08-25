@@ -8,7 +8,6 @@ import { db } from './firebase';
 import { audioManager } from './audioManager';
 import GameHud from './GameHud';
 import KanbanBoard from './KanbanBoard';
-import { getLevel } from './gameRules';
 import {
   activateInventoryItem, awardMissionOnce, cancelActiveItem, finishExpiredItems,
   initializeGameProfile, profileRef, purchaseReward, saveRewardCatalogItem,
@@ -45,7 +44,6 @@ function App() {
   const initializingProfile = useRef(false);
   const requestedInbox = useRef(false);
   const awarding = useRef(new Set<string>());
-  const previousLevel = useRef<number | null>(null);
   const lastAudibleAmbientVolume = useRef(ambientVolume || DEFAULT_AMBIENT_VOLUME);
 
   useEffect(() => {
@@ -93,15 +91,6 @@ function App() {
     setProfileLoaded(true);
   }, (error) => { console.error('Firebase error profile:', error); setProfileLoaded(true); }), []);
 
-  useEffect(() => {
-    if (!profile) return;
-    const currentLevel = getLevel(profile.totalXp);
-    if (previousLevel.current !== null && currentLevel > previousLevel.current) {
-      audioManager.playEffect('levelUp');
-    }
-    previousLevel.current = currentLevel;
-  }, [profile]);
-
   useEffect(() => onSnapshot(
     query(collection(db, 'reward_catalog'), orderBy('createdAt', 'desc')),
     (snapshot) => setCatalog(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as RewardCatalogItem))),
@@ -130,10 +119,10 @@ function App() {
       awarding.current.add(todo.id);
       setSyncing(true);
       void awardMissionOnce(todo.id)
-        .then((awarded) => {
+        .then(({ awarded, leveledUp }) => {
           if (awarded) {
             setRewardToast(true);
-            audioManager.playEffect('reward');
+            audioManager.playEffect(leveledUp ? 'levelUp' : 'reward');
             window.setTimeout(() => setRewardToast(false), 2600);
           }
         })
@@ -197,6 +186,12 @@ function App() {
   }).then(() => undefined);
   const deleteList = async (id: string) => deleteDoc(doc(db, 'board_lists', id));
 
+  const changeView = (view: View) => {
+    if (view === currentView) return;
+    audioManager.playEffect('pageTurn');
+    setCurrentView(view);
+  };
+
   const loading = loadingTasks || loadingLists || !profileLoaded;
 
   return (
@@ -204,9 +199,9 @@ function App() {
       <header className="app-header">
         <div className="brand-lockup"><span className="brand-mark"><Sparkles size={20} /></span><div><h1>Lembrar.me</h1><p>Missões para uma vida com intenção</p></div></div>
         <nav className="main-nav" aria-label="Navegação principal">
-          <button className={currentView === 'board' ? 'active' : ''} onClick={() => setCurrentView('board')}><LayoutTemplate size={17} /> Quadro de Missões</button>
-          <button className={currentView === 'rewards' ? 'active' : ''} onClick={() => setCurrentView('rewards')}><Gift size={17} /> Recompensas</button>
-          <button className={currentView === 'journal' ? 'active' : ''} onClick={() => setCurrentView('journal')}><BookOpen size={17} /> Diário</button>
+          <button className={currentView === 'board' ? 'active' : ''} onClick={() => changeView('board')}><LayoutTemplate size={17} /> Quadro de Missões</button>
+          <button className={currentView === 'rewards' ? 'active' : ''} onClick={() => changeView('rewards')}><Gift size={17} /> Recompensas</button>
+          <button className={currentView === 'journal' ? 'active' : ''} onClick={() => changeView('journal')}><BookOpen size={17} /> Diário</button>
         </nav>
         <div className="ambient-volume-control" title={`Música ambiente: ${ambientVolume}%`}>
           <button
