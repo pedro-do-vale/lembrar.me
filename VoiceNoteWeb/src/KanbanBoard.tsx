@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Trash2, Edit3, Clock, Bell, CheckCircle, Circle, Save, X, Plus, GripVertical } from 'lucide-react';
-import { LEVEL_UP_DURATION_MS } from './audioManager';
+import { SCRATCH_DURATION_MS } from './audioManager';
 import type { BoardList, Todo } from './types';
 
 interface KanbanProps {
@@ -93,7 +93,7 @@ export default function KanbanBoard({
           next.delete(todo.id);
           return next;
         });
-      }, LEVEL_UP_DURATION_MS);
+      }, SCRATCH_DURATION_MS);
     }
     onToggleComplete(todo.id, todo.archived);
   };
@@ -189,7 +189,7 @@ export default function KanbanBoard({
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             className={`todo-item kanban-card ${todo.archived ? 'completed' : ''} ${strikingIds.has(todo.id) ? 'striking' : ''} ${snapshot.isDragging ? 'is-dragging' : ''}`}
-                            style={{ ...provided.draggableProps.style, '--strike-duration': `${LEVEL_UP_DURATION_MS}ms` } as React.CSSProperties}
+                            style={{ ...provided.draggableProps.style, '--strike-duration': `${SCRATCH_DURATION_MS}ms` } as React.CSSProperties}
                           >
                             <div className="kanban-card-drag-handle" {...provided.dragHandleProps}>
                               <GripVertical size={16} className="text-muted" />

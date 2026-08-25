@@ -163,8 +163,8 @@ function App() {
     if (window.confirm('Apagar esta missão permanentemente?')) await deleteDoc(doc(db, 'notes', id));
   };
   const toggleComplete = async (id: string, completed: boolean | undefined) => {
-    await updateDoc(doc(db, 'notes', id), { archived: !completed });
     if (!completed) audioManager.playEffect('scratch');
+    await updateDoc(doc(db, 'notes', id), { archived: !completed });
   };
   const updateTodo = async (id: string, text: string, reminderAt: number | null) =>
     updateDoc(doc(db, 'notes', id), { text, reminderAt });

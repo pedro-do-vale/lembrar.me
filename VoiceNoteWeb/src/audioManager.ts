@@ -20,6 +20,7 @@ const CROSSFADE_SECONDS = 4;
 // Measured from the bundled audio files so visual feedback stays synchronized.
 export const MORE_EXP_DURATION_MS = 3118;
 export const LEVEL_UP_DURATION_MS = 2995;
+export const SCRATCH_DURATION_MS = 480;
 
 type Effect = 'scratch' | 'reward' | 'levelUp';
 

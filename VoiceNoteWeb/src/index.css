@@ -114,13 +114,13 @@ h3 { font-size: 1.35rem; }
 .kanban-card.completed { background: #dddbc1; opacity: .82; }
 .kanban-card.completed .todo-text { text-decoration: line-through; color: #766d5c; }
 .kanban-card.striking .todo-text { position: relative; text-decoration: none; color: #766d5c; }
-.kanban-card.striking .todo-text::after { content: ''; position: absolute; left: 0; right: 0; top: 52%; height: 2px; background: #6f4935; transform: scaleX(0); transform-origin: left center; animation: strike-through var(--strike-duration, 2995ms) ease-out forwards; }
+.kanban-card.striking .todo-text::after { content: ''; position: absolute; left: 0; right: 0; top: 52%; height: 2px; background: #6f4935; transform: scaleX(0); transform-origin: left center; animation: strike-through var(--strike-duration, 480ms) linear forwards; }
 @keyframes strike-through { to { transform: scaleX(1); } }
 .kanban-card-drag-handle { color: #a08769; padding-top: .15rem; }
 .todo-checkbox, .btn-icon, .icon-button { display: grid; place-items: center; border: 0; background: transparent; padding: .2rem; color: #6b5947; }
 .todo-checkbox { color: var(--green); }
 .todo-content { min-width: 0; flex: 1; }
-.todo-text { overflow-wrap: anywhere; font-weight: 700; color: #3c2d21; }
+.todo-text { display: inline-block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; font-weight: 700; color: #3c2d21; }
 .todo-date { display: flex; flex-wrap: wrap; gap: .6rem !important; margin-top: .38rem; color: #7a6752; font-size: .68rem; }
 .todo-date span { display: flex; align-items: center; gap: .2rem; }
 .todo-actions { display: flex; flex-direction: column; gap: .1rem; opacity: .45; }
