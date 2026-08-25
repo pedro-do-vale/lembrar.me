@@ -13,7 +13,7 @@ const AMBIENT_SEQUENCE = [
   AUDIO_PATHS.frost,
 ] as const;
 
-const AMBIENT_VOLUME = 0.22;
+const DEFAULT_AMBIENT_VOLUME = 0.22;
 const EFFECT_VOLUME = 0.7;
 const CROSSFADE_SECONDS = 4;
 
@@ -31,6 +31,7 @@ class AudioManager {
   private crossfading = false;
   private wantsAmbient = false;
   private unlockListenersAttached = false;
+  private ambientVolume = DEFAULT_AMBIENT_VOLUME;
   private activeEffects = new Set<HTMLAudioElement>();
   private exclusiveEffectPlaying = false;
   private exclusiveEffectQueue: Effect[] = [];
@@ -50,6 +51,12 @@ class AudioManager {
     this.wantsAmbient = false;
     this.removeUnlockListeners();
     this.ambientPlayers?.forEach((player) => player.pause());
+  }
+
+  setAmbientVolume(volume: number) {
+    this.ambientVolume = Math.min(1, Math.max(0, volume));
+    if (!this.ambientPlayers || this.crossfading) return;
+    this.ambientPlayers[this.activePlayer].volume = this.ambientVolume;
   }
 
   playEffect(effect: Effect) {
@@ -102,7 +109,7 @@ class AudioManager {
       player.addEventListener('timeupdate', () => this.maybeCrossfade(player));
       player.addEventListener('ended', () => this.advanceWithoutFade(player));
     });
-    first.volume = AMBIENT_VOLUME;
+    first.volume = this.ambientVolume;
     second.volume = 0;
     this.ambientPlayers = [first, second];
   }
@@ -118,7 +125,7 @@ class AudioManager {
     this.sequenceIndex = (this.sequenceIndex + 1) % AMBIENT_SEQUENCE.length;
     player.src = AMBIENT_SEQUENCE[this.sequenceIndex];
     player.currentTime = 0;
-    player.volume = AMBIENT_VOLUME;
+    player.volume = this.ambientVolume;
     if (this.wantsAmbient) void player.play().catch(() => this.attachUnlockListeners());
   }
 
@@ -145,8 +152,8 @@ class AudioManager {
     const startedAt = performance.now();
     const fade = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / (CROSSFADE_SECONDS * 1000));
-      outgoing.volume = AMBIENT_VOLUME * (1 - progress);
-      incoming.volume = AMBIENT_VOLUME * progress;
+      outgoing.volume = this.ambientVolume * (1 - progress);
+      incoming.volume = this.ambientVolume * progress;
 
       if (progress < 1 && this.wantsAmbient) {
         requestAnimationFrame(fade);

@@ -61,6 +61,10 @@ h3 { font-size: 1.35rem; }
 .main-nav button { display: flex; align-items: center; gap: .45rem; border: 1px solid transparent; border-radius: 6px; padding: .66rem .9rem; background: transparent; color: #d9c7a8; font-weight: 700; }
 .main-nav button:hover { color: #fff4d8; background: rgba(255, 255, 255, .07); }
 .main-nav button.active { color: #392a20; background: #efd59e; border-color: #fff0c8; box-shadow: 3px 3px 0 #17100d; }
+.ambient-volume-control { display: flex; align-items: center; gap: .35rem; min-width: 112px; padding: .35rem .5rem; border: 1px solid rgba(227, 189, 106, .38); border-radius: 99px; background: rgba(20, 13, 10, .28); }
+.ambient-volume-toggle { display: grid; flex: 0 0 auto; place-items: center; padding: .15rem; border: 0; background: transparent; color: #e6c77f; }
+.ambient-volume-toggle:hover { color: #fff0c7; }
+.ambient-volume-control input[type='range'] { width: 72px; height: 3px; margin: 0; accent-color: #e3bd6a; cursor: pointer; }
 
 .game-hud {
   position: relative;
@@ -78,8 +82,8 @@ h3 { font-size: 1.35rem; }
 }
 .game-hud::before { content: ''; position: absolute; inset: -5px -8px; z-index: -1; opacity: .25; pointer-events: none; background: url('./assets/paper-ui/hud.png') center / 100% 100% no-repeat; }
 .hud-level { display: flex; align-items: center; gap: .45rem; padding-right: 1rem; border-right: 1px solid #b79b71; }
-.hud-level-label { font-size: .72rem; text-transform: uppercase; color: var(--muted); font-weight: 800; }
-.hud-level strong { font: 700 2.2rem/1 'Cormorant Garamond', serif; color: var(--green-dark); }
+.hud-level-label { display: inline-flex; align-items: center; height: 2.2rem; font-size: .72rem; line-height: 1; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.hud-level strong { display: inline-flex; align-items: center; height: 2.2rem; font: 700 2.2rem/1 'Cormorant Garamond', serif; color: var(--green-dark); }
 .hud-xp { min-width: 190px; }
 .hud-row { display: flex; justify-content: space-between; gap: .8rem; margin-bottom: .35rem; color: #5d4937; font-size: .78rem; font-weight: 800; }
 .hud-row span:first-child, .hud-stat { display: flex; align-items: center; gap: .35rem; }
@@ -247,6 +251,7 @@ h3 { font-size: 1.35rem; }
   .main-nav { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); }
   .main-nav button { justify-content: center; padding: .65rem .35rem; font-size: .72rem; }
   .brand-lockup p { display: none; }
+  .ambient-volume-control { align-self: flex-end; margin-top: -.15rem; }
   .game-hud { grid-template-columns: auto 1fr auto; gap: .65rem; width: calc(100% - 1rem); padding: .65rem .7rem; }
   .game-hud .hud-stat:nth-of-type(n+2) { display: none; }
   .hud-level { padding-right: .55rem; }

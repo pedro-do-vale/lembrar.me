@@ -3,7 +3,7 @@ import {
   addDoc, collection, deleteDoc, deleteField, doc, onSnapshot,
   orderBy, query, updateDoc,
 } from 'firebase/firestore';
-import { BookOpen, Gift, LayoutTemplate, Mic, Sparkles } from 'lucide-react';
+import { BookOpen, Gift, LayoutTemplate, Mic, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { db } from './firebase';
 import { audioManager } from './audioManager';
 import GameHud from './GameHud';
@@ -20,6 +20,8 @@ import type {
 } from './types';
 
 type View = 'board' | 'rewards' | 'journal';
+const AMBIENT_VOLUME_STORAGE_KEY = 'lembrar-me-ambient-volume';
+const DEFAULT_AMBIENT_VOLUME = 22;
 const Analytics = lazy(() => import('./Analytics'));
 const RewardsHub = lazy(() => import('./RewardsHub'));
 
@@ -36,10 +38,21 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [rewardToast, setRewardToast] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
+  const [ambientVolume, setAmbientVolume] = useState(() => {
+    const saved = Number(window.localStorage.getItem(AMBIENT_VOLUME_STORAGE_KEY));
+    return Number.isFinite(saved) && saved >= 0 && saved <= 100 ? saved : DEFAULT_AMBIENT_VOLUME;
+  });
   const initializingProfile = useRef(false);
   const requestedInbox = useRef(false);
   const awarding = useRef(new Set<string>());
   const previousLevel = useRef<number | null>(null);
+  const lastAudibleAmbientVolume = useRef(ambientVolume || DEFAULT_AMBIENT_VOLUME);
+
+  useEffect(() => {
+    audioManager.setAmbientVolume(ambientVolume / 100);
+    window.localStorage.setItem(AMBIENT_VOLUME_STORAGE_KEY, String(ambientVolume));
+    if (ambientVolume > 0) lastAudibleAmbientVolume.current = ambientVolume;
+  }, [ambientVolume]);
 
   useEffect(() => {
     audioManager.startAmbient();
@@ -195,6 +208,26 @@ function App() {
           <button className={currentView === 'rewards' ? 'active' : ''} onClick={() => setCurrentView('rewards')}><Gift size={17} /> Recompensas</button>
           <button className={currentView === 'journal' ? 'active' : ''} onClick={() => setCurrentView('journal')}><BookOpen size={17} /> Diário</button>
         </nav>
+        <div className="ambient-volume-control" title={`Música ambiente: ${ambientVolume}%`}>
+          <button
+            type="button"
+            className="ambient-volume-toggle"
+            onClick={() => setAmbientVolume(ambientVolume === 0 ? lastAudibleAmbientVolume.current : 0)}
+            aria-label={ambientVolume === 0 ? 'Ativar música ambiente' : 'Silenciar música ambiente'}
+          >
+            {ambientVolume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={ambientVolume}
+            onChange={(event) => setAmbientVolume(Number(event.target.value))}
+            aria-label="Volume da música ambiente"
+            aria-valuetext={`${ambientVolume}%`}
+          />
+        </div>
       </header>
 
       <GameHud profile={profile} inventory={inventory} syncing={syncing} />
