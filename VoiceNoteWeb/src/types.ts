@@ -5,7 +5,10 @@ export interface Todo {
   timestamp: number;
   archived?: boolean;
   reminderAt?: number | null;
+  xpReward?: number;
   listId?: string | null;
+  position?: number;
+  dailyResetDate?: string;
   targetList?: string;
   gameRewardState?: 'legacy' | 'awarded';
   rewardedAt?: number;

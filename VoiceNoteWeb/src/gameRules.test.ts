@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRemaining, getLevel, getLevelProgress, getRemainingMs, validateRewardDraft } from './gameRules';
+import { formatRemaining, getLevel, getLevelProgress, getMissionXp, getRemainingMs, validateRewardDraft } from './gameRules';
 import type { RewardInventoryItem } from './types';
 
 describe('game rules', () => {
@@ -8,6 +8,13 @@ describe('game rules', () => {
     expect(getLevel(99)).toBe(1);
     expect(getLevel(100)).toBe(2);
     expect(getLevelProgress(235)).toBe(35);
+  });
+
+  it('normalizes manually assigned mission XP and preserves the legacy default', () => {
+    expect(getMissionXp()).toBe(10);
+    expect(getMissionXp(25)).toBe(25);
+    expect(getMissionXp(0)).toBe(1);
+    expect(getMissionXp(150)).toBe(100);
   });
 
   it('validates prices and optional durations', () => {

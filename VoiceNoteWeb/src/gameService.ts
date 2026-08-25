@@ -3,7 +3,7 @@ import {
   updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { COINS_PER_MISSION, getLevel, XP_PER_MISSION, validateRewardDraft } from './gameRules';
+import { COINS_PER_MISSION, getLevel, getMissionXp, validateRewardDraft } from './gameRules';
 import type { RewardDraft, RewardInventoryItem, Todo } from './types';
 
 export const PROFILE_ID = 'solo';
@@ -49,18 +49,19 @@ export async function awardMissionOnce(todoId: string) {
     const [todoSnapshot, profileSnapshot] = await Promise.all([
       transaction.get(todoRef), transaction.get(profileRef),
     ]);
-    if (!todoSnapshot.exists() || !profileSnapshot.exists()) return { awarded: false, leveledUp: false };
+    if (!todoSnapshot.exists() || !profileSnapshot.exists()) return { awarded: false, leveledUp: false, xpAwarded: 0, coinsAwarded: 0 };
     const todo = todoSnapshot.data() as Todo;
     const profile = profileSnapshot.data();
-    if (!todo.archived || todo.gameRewardState || !profile.migrationComplete) return { awarded: false, leveledUp: false };
+    if (!todo.archived || todo.gameRewardState || !profile.migrationComplete) return { awarded: false, leveledUp: false, xpAwarded: 0, coinsAwarded: 0 };
 
     const now = Date.now();
+    const missionXp = getMissionXp(todo.xpReward);
     const previousXp = profile.totalXp ?? 0;
-    const nextXp = previousXp + XP_PER_MISSION;
+    const nextXp = previousXp + missionXp;
     transaction.update(todoRef, {
       gameRewardState: 'awarded',
       rewardedAt: now,
-      rewardedXp: XP_PER_MISSION,
+      rewardedXp: missionXp,
       rewardedCoins: COINS_PER_MISSION,
     });
     transaction.update(profileRef, {
@@ -68,7 +69,12 @@ export async function awardMissionOnce(todoId: string) {
       coins: (profile.coins ?? 0) + COINS_PER_MISSION,
       updatedAt: now,
     });
-    return { awarded: true, leveledUp: getLevel(nextXp) > getLevel(previousXp) };
+    return {
+      awarded: true,
+      leveledUp: getLevel(nextXp) > getLevel(previousXp),
+      xpAwarded: missionXp,
+      coinsAwarded: COINS_PER_MISSION,
+    };
   });
 }
 

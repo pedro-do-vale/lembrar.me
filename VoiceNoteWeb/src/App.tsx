@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   addDoc, collection, deleteDoc, deleteField, doc, onSnapshot,
-  orderBy, query, updateDoc,
+  orderBy, query, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { BookOpen, Gift, LayoutTemplate, Mic, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { db } from './firebase';
 import { audioManager } from './audioManager';
+import { getLocalDateKey, getMsUntilNextMidnight, isDailyQuestList } from './dailyQuests';
 import GameHud from './GameHud';
 import KanbanBoard from './KanbanBoard';
 import {
@@ -35,8 +36,10 @@ function App() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [currentView, setCurrentView] = useState<View>('board');
   const [syncing, setSyncing] = useState(false);
-  const [rewardToast, setRewardToast] = useState(false);
+  const [rewardToast, setRewardToast] = useState<{ todoId: string; xp: number; coins: number } | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [dailyDateKey, setDailyDateKey] = useState(() => getLocalDateKey());
+  const [dailyQuestsReady, setDailyQuestsReady] = useState(false);
   const [ambientVolume, setAmbientVolume] = useState(() => {
     const saved = Number(window.localStorage.getItem(AMBIENT_VOLUME_STORAGE_KEY));
     return Number.isFinite(saved) && saved >= 0 && saved <= 100 ? saved : DEFAULT_AMBIENT_VOLUME;
@@ -44,6 +47,7 @@ function App() {
   const initializingProfile = useRef(false);
   const requestedInbox = useRef(false);
   const awarding = useRef(new Set<string>());
+  const resettingDailyQuests = useRef(false);
   const lastAudibleAmbientVolume = useRef(ambientVolume || DEFAULT_AMBIENT_VOLUME);
 
   useEffect(() => {
@@ -97,6 +101,65 @@ function App() {
     (error) => console.error('Firebase error reward catalog:', error),
   ), []);
 
+  useEffect(() => {
+    const refreshDate = () => {
+      const currentDateKey = getLocalDateKey();
+      if (currentDateKey !== dailyDateKey) {
+        setDailyQuestsReady(false);
+        setDailyDateKey(currentDateKey);
+      }
+    };
+    const timer = window.setTimeout(refreshDate, getMsUntilNextMidnight() + 100);
+    window.addEventListener('focus', refreshDate);
+    document.addEventListener('visibilitychange', refreshDate);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', refreshDate);
+      document.removeEventListener('visibilitychange', refreshDate);
+    };
+  }, [dailyDateKey]);
+
+  useEffect(() => {
+    if (loadingTasks || loadingLists || resettingDailyQuests.current) return;
+    const dailyList = lists.find((list) => isDailyQuestList(list.title));
+    if (!dailyList) {
+      setDailyQuestsReady(true);
+      return;
+    }
+
+    const pendingReset = todos.filter((todo) => todo.listId === dailyList.id && todo.dailyResetDate !== dailyDateKey);
+    if (pendingReset.length === 0) {
+      setDailyQuestsReady(true);
+      return;
+    }
+
+    resettingDailyQuests.current = true;
+    setDailyQuestsReady(false);
+    setSyncing(true);
+    void (async () => {
+      for (let offset = 0; offset < pendingReset.length; offset += 400) {
+        const batch = writeBatch(db);
+        pendingReset.slice(offset, offset + 400).forEach((todo) => {
+          batch.update(doc(db, 'notes', todo.id), {
+            archived: false,
+            dailyResetDate: dailyDateKey,
+            gameRewardState: deleteField(),
+            rewardedAt: deleteField(),
+            rewardedXp: deleteField(),
+            rewardedCoins: deleteField(),
+          });
+        });
+        await batch.commit();
+      }
+      setDailyQuestsReady(true);
+    })()
+      .catch((error) => console.warn('Daily quest reset pending:', error))
+      .finally(() => {
+        resettingDailyQuests.current = false;
+        setSyncing(false);
+      });
+  }, [dailyDateKey, lists, loadingLists, loadingTasks, retryToken, todos]);
+
   useEffect(() => onSnapshot(
     query(collection(db, 'reward_inventory'), orderBy('purchasedAt', 'desc')),
     (snapshot) => setInventory(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as RewardInventoryItem))),
@@ -113,23 +176,23 @@ function App() {
   }, [loadingTasks, profileLoaded, profile, todos]);
 
   useEffect(() => {
-    if (!profile?.migrationComplete) return;
+    if (!profile?.migrationComplete || !dailyQuestsReady) return;
     const pending = todos.filter((todo) => todo.archived && !todo.gameRewardState && !awarding.current.has(todo.id));
     pending.forEach((todo) => {
       awarding.current.add(todo.id);
       setSyncing(true);
       void awardMissionOnce(todo.id)
-        .then(({ awarded, leveledUp }) => {
+        .then(({ awarded, leveledUp, xpAwarded, coinsAwarded }) => {
           if (awarded) {
-            setRewardToast(true);
+            setRewardToast({ todoId: todo.id, xp: xpAwarded, coins: coinsAwarded });
             audioManager.playEffect(leveledUp ? 'levelUp' : 'reward');
-            window.setTimeout(() => setRewardToast(false), 2600);
+            window.setTimeout(() => setRewardToast(null), 2600);
           }
         })
         .catch((error) => console.warn('Reward reconciliation pending:', error))
         .finally(() => { awarding.current.delete(todo.id); setSyncing(false); });
     });
-  }, [todos, profile?.migrationComplete, retryToken]);
+  }, [dailyQuestsReady, todos, profile?.migrationComplete, retryToken]);
 
   useEffect(() => {
     const retry = () => setRetryToken((value) => value + 1);
@@ -168,17 +231,33 @@ function App() {
     if (!completed) audioManager.playEffect('scratch');
     await updateDoc(doc(db, 'notes', id), { archived: !completed });
   };
-  const updateTodo = async (id: string, text: string, reminderAt: number | null) =>
-    updateDoc(doc(db, 'notes', id), { text, reminderAt });
-  const moveTodo = async (todoId: string, listId: string) =>
-    updateDoc(doc(db, 'notes', todoId), { listId });
-  const createTodo = async (listId: string, text: string, reminderAt: number | null) => {
+  const updateTodo = async (id: string, text: string, reminderAt: number | null, xpReward: number) =>
+    updateDoc(doc(db, 'notes', id), { text, reminderAt, xpReward });
+  const reorderTodos = async (updates: Array<{ id: string; listId: string; position: number }>) => {
+    for (let offset = 0; offset < updates.length; offset += 400) {
+      const batch = writeBatch(db);
+      updates.slice(offset, offset + 400).forEach((update) => {
+        batch.update(doc(db, 'notes', update.id), { listId: update.listId, position: update.position });
+      });
+      await batch.commit();
+    }
+  };
+  const reorderLists = async (updates: Array<{ id: string; order: number }>) => {
+    const batch = writeBatch(db);
+    updates.forEach((update) => {
+      batch.update(doc(db, 'board_lists', update.id), { order: update.order });
+    });
+    await batch.commit();
+  };
+  const createTodo = async (listId: string, text: string, reminderAt: number | null, xpReward: number) => {
     const timestamp = Date.now();
     const createdAt = new Date(timestamp);
     const pad = (value: number) => value.toString().padStart(2, '0');
     const date = `${pad(createdAt.getDate())}/${pad(createdAt.getMonth() + 1)}/${createdAt.getFullYear()} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}`;
+    const isDailyQuest = lists.some((list) => list.id === listId && isDailyQuestList(list.title));
     await addDoc(collection(db, 'notes'), {
-      text: text.trim(), date, timestamp, archived: false, reminderAt, listId,
+      text: text.trim(), date, timestamp, archived: false, reminderAt, xpReward, listId, position: -timestamp,
+      ...(isDailyQuest ? { dailyResetDate: dailyDateKey } : {}),
     });
   };
   const createList = async (title: string) => addDoc(collection(db, 'board_lists'), {
@@ -236,12 +315,12 @@ function App() {
           ) : todos.length === 0 && lists.length === 0 ? (
             <div className="empty-state paper-panel"><Mic size={48} /><h2>Seu mapa está vazio</h2><p>Grave uma missão no smartwatch para começar a jornada.</p></div>
           ) : (
-            <section className="quest-board-section"><div className="board-title"><div><span className="eyebrow">A jornada de hoje</span><h2>Quadro de Missões</h2></div><p>Conclua uma missão pela primeira vez para ganhar <strong>10 XP</strong> e <strong>5 moedas</strong>.</p></div><KanbanBoard todos={todos} lists={lists} onToggleComplete={toggleComplete} onDeleteTodo={handleDeleteTodo} onUpdateTodo={updateTodo} onMoveTodo={moveTodo} onCreateTodo={createTodo} onCreateList={createList} onDeleteList={deleteList} /></section>
+            <section className="quest-board-section"><div className="board-title"><div><span className="eyebrow">A jornada de hoje</span><h2>Quadro de Missões</h2></div><p>Defina o XP de cada missão e ganhe também <strong>5 moedas</strong> ao concluí-la pela primeira vez.</p></div><KanbanBoard todos={todos} lists={lists} rewardingTodoId={rewardToast?.todoId ?? null} onToggleComplete={toggleComplete} onDeleteTodo={handleDeleteTodo} onUpdateTodo={updateTodo} onReorderTodos={reorderTodos} onReorderLists={reorderLists} onCreateTodo={createTodo} onCreateList={createList} onDeleteList={deleteList} /></section>
           )}
         </Suspense>
       </main>
 
-      {rewardToast && <div className="reward-toast" role="status"><Sparkles size={22} /><div><strong>Missão concluída!</strong><span>+10 XP · +5 moedas</span></div></div>}
+      {rewardToast && <div className="reward-toast" role="status"><Sparkles size={22} /><div><strong>Missão concluída!</strong><span>+{rewardToast.xp} XP · +{rewardToast.coins} moedas</span></div></div>}
     </div>
   );
 }

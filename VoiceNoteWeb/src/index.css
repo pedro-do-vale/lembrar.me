@@ -143,6 +143,13 @@ h3 { font-size: 1.35rem; }
 .kanban-column { width: 320px; min-width: 320px; max-height: calc(100vh - 285px); display: flex; flex-direction: column; scroll-snap-align: start; background: rgba(245, 226, 187, .94); border: 2px solid #6f5239; box-shadow: 5px 7px 0 rgba(43, 26, 18, .34); transform: rotate(-.15deg); }
 .kanban-column:nth-child(even) { transform: rotate(.18deg); }
 .kanban-column-header { padding: .85rem 1rem; display: flex; justify-content: space-between; align-items: center; background: #dec28e; border-bottom: 2px solid #8d6d47; }
+.kanban-column-title { min-width: 0; display: flex; align-items: center; gap: .35rem; cursor: grab; }
+.kanban-column-title:active { cursor: grabbing; }
+.column-drag-icon { flex: 0 0 auto; color: #927654; }
+.kanban-column.is-dragging-column { z-index: 10; transform: rotate(1.2deg); box-shadow: 12px 16px 30px rgba(36, 20, 13, .42); }
+.daily-quest-column { position: relative; border-color: #735232; box-shadow: 5px 7px 0 rgba(43, 26, 18, .34), inset 0 0 0 2px rgba(198, 139, 44, .16); }
+.daily-quest-column .kanban-column-title { cursor: default; }
+.daily-quest-pin { flex: 0 0 auto; color: #8c3f2e; filter: drop-shadow(1px 1px 0 rgba(255, 239, 198, .7)); transform: rotate(-18deg); }
 .kanban-column-header h3 { display: flex; align-items: center; gap: .55rem; color: #463324; font-size: 1.45rem; }
 .kanban-count { min-width: 24px; text-align: center; padding: .1rem .4rem; border-radius: 99px; background: #75563d; color: #f9ebcd; font: 700 .72rem 'Nunito', sans-serif; }
 .kanban-droppable { min-height: 160px; padding: .85rem; overflow-y: auto; display: flex; flex-direction: column; gap: .7rem; transition: background .2s; }
@@ -181,6 +188,15 @@ h3 { font-size: 1.35rem; }
 .add-todo-form { display: grid; gap: .55rem; margin: .65rem .85rem 0; padding: .7rem; background: #ead5a9; border: 1px dashed #94744f; }
 .new-todo-reminder { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
 .new-todo-reminder .edit-input { min-width: 0; padding: .42rem .5rem; font-size: .76rem; }
+.mission-xp-field { display: flex; align-items: center; gap: .35rem; color: #765323; font-size: .72rem; font-weight: 800; }
+.mission-xp-field .edit-input { width: 72px; margin-left: auto; padding: .35rem .45rem; text-align: center; }
+.todo-date .todo-xp { color: #8d5d24; font-weight: 800; }
+.todo-date .todo-xp.gaining-xp { animation: todo-xp-gain-color var(--xp-gain-duration, 3118ms) ease-in-out forwards; }
+@keyframes todo-xp-gain-color {
+  0% { color: #8d5d24; filter: none; transform: scale(1); }
+  12%, 82% { color: #e0aa32; filter: drop-shadow(0 0 5px rgba(255, 221, 104, .58)); transform: scale(1.08); }
+  100% { color: #8d5d24; filter: none; transform: scale(1); }
+}
 .new-todo-actions { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; }
 
 .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }

@@ -3,6 +3,13 @@ import type { RewardDraft, RewardInventoryItem } from './types';
 export const XP_PER_MISSION = 10;
 export const COINS_PER_MISSION = 5;
 export const XP_PER_LEVEL = 100;
+export const MIN_MISSION_XP = 1;
+export const MAX_MISSION_XP = 100;
+
+export function getMissionXp(value?: number) {
+  if (!Number.isFinite(value)) return XP_PER_MISSION;
+  return Math.min(MAX_MISSION_XP, Math.max(MIN_MISSION_XP, Math.round(value!)));
+}
 
 export function getLevel(totalXp: number) {
   return Math.floor(Math.max(0, totalXp) / XP_PER_LEVEL) + 1;
