@@ -5,8 +5,10 @@ import {
 } from 'firebase/firestore';
 import { BookOpen, Gift, LayoutTemplate, Mic, Sparkles } from 'lucide-react';
 import { db } from './firebase';
+import { audioManager } from './audioManager';
 import GameHud from './GameHud';
 import KanbanBoard from './KanbanBoard';
+import { getLevel } from './gameRules';
 import {
   activateInventoryItem, awardMissionOnce, cancelActiveItem, finishExpiredItems,
   initializeGameProfile, profileRef, purchaseReward, saveRewardCatalogItem,
@@ -37,6 +39,12 @@ function App() {
   const initializingProfile = useRef(false);
   const requestedInbox = useRef(false);
   const awarding = useRef(new Set<string>());
+  const previousLevel = useRef<number | null>(null);
+
+  useEffect(() => {
+    audioManager.startAmbient();
+    return () => audioManager.stopAmbient();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -72,6 +80,15 @@ function App() {
     setProfileLoaded(true);
   }, (error) => { console.error('Firebase error profile:', error); setProfileLoaded(true); }), []);
 
+  useEffect(() => {
+    if (!profile) return;
+    const currentLevel = getLevel(profile.totalXp);
+    if (previousLevel.current !== null && currentLevel > previousLevel.current) {
+      audioManager.playEffect('levelUp');
+    }
+    previousLevel.current = currentLevel;
+  }, [profile]);
+
   useEffect(() => onSnapshot(
     query(collection(db, 'reward_catalog'), orderBy('createdAt', 'desc')),
     (snapshot) => setCatalog(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as RewardCatalogItem))),
@@ -103,6 +120,7 @@ function App() {
         .then((awarded) => {
           if (awarded) {
             setRewardToast(true);
+            audioManager.playEffect('reward');
             window.setTimeout(() => setRewardToast(false), 2600);
           }
         })
@@ -144,12 +162,23 @@ function App() {
   const handleDeleteTodo = async (id: string) => {
     if (window.confirm('Apagar esta missão permanentemente?')) await deleteDoc(doc(db, 'notes', id));
   };
-  const toggleComplete = async (id: string, completed: boolean | undefined) =>
-    updateDoc(doc(db, 'notes', id), { archived: !completed });
+  const toggleComplete = async (id: string, completed: boolean | undefined) => {
+    await updateDoc(doc(db, 'notes', id), { archived: !completed });
+    if (!completed) audioManager.playEffect('scratch');
+  };
   const updateTodo = async (id: string, text: string, reminderAt: number | null) =>
     updateDoc(doc(db, 'notes', id), { text, reminderAt });
   const moveTodo = async (todoId: string, listId: string) =>
     updateDoc(doc(db, 'notes', todoId), { listId });
+  const createTodo = async (listId: string, text: string, reminderAt: number | null) => {
+    const timestamp = Date.now();
+    const createdAt = new Date(timestamp);
+    const pad = (value: number) => value.toString().padStart(2, '0');
+    const date = `${pad(createdAt.getDate())}/${pad(createdAt.getMonth() + 1)}/${createdAt.getFullYear()} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}`;
+    await addDoc(collection(db, 'notes'), {
+      text: text.trim(), date, timestamp, archived: false, reminderAt, listId,
+    });
+  };
   const createList = async (title: string) => addDoc(collection(db, 'board_lists'), {
     title, order: lists.length ? Math.max(...lists.map((list) => list.order)) + 1 : 0,
   }).then(() => undefined);
@@ -179,7 +208,7 @@ function App() {
           ) : todos.length === 0 && lists.length === 0 ? (
             <div className="empty-state paper-panel"><Mic size={48} /><h2>Seu mapa está vazio</h2><p>Grave uma missão no smartwatch para começar a jornada.</p></div>
           ) : (
-            <section className="quest-board-section"><div className="board-title"><div><span className="eyebrow">A jornada de hoje</span><h2>Quadro de Missões</h2></div><p>Conclua uma missão pela primeira vez para ganhar <strong>10 XP</strong> e <strong>5 moedas</strong>.</p></div><KanbanBoard todos={todos} lists={lists} onToggleComplete={toggleComplete} onDeleteTodo={handleDeleteTodo} onUpdateTodo={updateTodo} onMoveTodo={moveTodo} onCreateList={createList} onDeleteList={deleteList} /></section>
+            <section className="quest-board-section"><div className="board-title"><div><span className="eyebrow">A jornada de hoje</span><h2>Quadro de Missões</h2></div><p>Conclua uma missão pela primeira vez para ganhar <strong>10 XP</strong> e <strong>5 moedas</strong>.</p></div><KanbanBoard todos={todos} lists={lists} onToggleComplete={toggleComplete} onDeleteTodo={handleDeleteTodo} onUpdateTodo={updateTodo} onMoveTodo={moveTodo} onCreateTodo={createTodo} onCreateList={createList} onDeleteList={deleteList} /></section>
           )}
         </Suspense>
       </main>

@@ -84,7 +84,7 @@ h3 { font-size: 1.35rem; }
 .hud-row { display: flex; justify-content: space-between; gap: .8rem; margin-bottom: .35rem; color: #5d4937; font-size: .78rem; font-weight: 800; }
 .hud-row span:first-child, .hud-stat { display: flex; align-items: center; gap: .35rem; }
 .xp-track { overflow: hidden; height: 11px; background: #c9b287; border: 1px solid #775b3d; box-shadow: inset 0 1px 2px rgba(50, 30, 15, .25); }
-.xp-track span { display: block; height: 100%; background: linear-gradient(90deg, #3c7953, #72a767); transition: width .45s ease; }
+.xp-track span { display: block; height: 100%; background: linear-gradient(90deg, #3c7953, #72a767); transition-property: width; transition-timing-function: ease; }
 .hud-stat { color: #624a34; font-size: .82rem; white-space: nowrap; }
 .hud-stat svg { color: var(--rust); }
 .sync-badge { position: absolute; right: .65rem; bottom: -1.35rem; background: #3e2c23; color: #f7e6c1; border-radius: 0 0 5px 5px; padding: .16rem .55rem; font-size: .68rem; }
@@ -113,6 +113,9 @@ h3 { font-size: 1.35rem; }
 .kanban-card.is-dragging { box-shadow: 8px 12px 22px rgba(48, 28, 18, .35); transform: rotate(2deg); }
 .kanban-card.completed { background: #dddbc1; opacity: .82; }
 .kanban-card.completed .todo-text { text-decoration: line-through; color: #766d5c; }
+.kanban-card.striking .todo-text { position: relative; text-decoration: none; color: #766d5c; }
+.kanban-card.striking .todo-text::after { content: ''; position: absolute; left: 0; right: 0; top: 52%; height: 2px; background: #6f4935; transform: scaleX(0); transform-origin: left center; animation: strike-through var(--strike-duration, 2995ms) ease-out forwards; }
+@keyframes strike-through { to { transform: scaleX(1); } }
 .kanban-card-drag-handle { color: #a08769; padding-top: .15rem; }
 .todo-checkbox, .btn-icon, .icon-button { display: grid; place-items: center; border: 0; background: transparent; padding: .2rem; color: #6b5947; }
 .todo-checkbox { color: var(--green); }
@@ -133,6 +136,12 @@ h3 { font-size: 1.35rem; }
 .add-list-column { background: rgba(242, 224, 187, .68); border-style: dashed; justify-content: center; min-height: 100px; }
 .add-list-btn { display: flex; align-items: center; justify-content: center; gap: .45rem; width: 100%; padding: 1.3rem; border: 0; background: transparent; color: #4b3829; font-weight: 800; }
 .add-list-form { padding: 1rem; }
+.add-todo-button { display: flex; align-items: center; justify-content: center; gap: .35rem; margin: .65rem .85rem 0; padding: .55rem; border: 1px dashed #937653; background: rgba(255, 247, 222, .55); color: #4b3829; font-size: .78rem; font-weight: 800; }
+.add-todo-button:hover { background: #fff0cb; border-style: solid; }
+.add-todo-form { display: grid; gap: .55rem; margin: .65rem .85rem 0; padding: .7rem; background: #ead5a9; border: 1px dashed #94744f; }
+.new-todo-reminder { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
+.new-todo-reminder .edit-input { min-width: 0; padding: .42rem .5rem; font-size: .76rem; }
+.new-todo-actions { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; }
 
 .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 .section-intro { color: var(--muted); margin-top: .4rem; }

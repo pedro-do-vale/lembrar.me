@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Trash2, Edit3, Clock, Bell, CheckCircle, Circle, Save, X, Plus, GripVertical } from 'lucide-react';
+import { LEVEL_UP_DURATION_MS } from './audioManager';
 import type { BoardList, Todo } from './types';
 
 interface KanbanProps {
@@ -10,6 +11,7 @@ interface KanbanProps {
   onDeleteTodo: (id: string) => void;
   onUpdateTodo: (id: string, text: string, reminderAt: number | null) => void;
   onMoveTodo: (todoId: string, newListId: string) => void;
+  onCreateTodo: (listId: string, text: string, reminderAt: number | null) => Promise<void>;
   onCreateList: (title: string) => void;
   onDeleteList: (id: string) => void;
 }
@@ -21,6 +23,7 @@ export default function KanbanBoard({
   onDeleteTodo,
   onUpdateTodo,
   onMoveTodo,
+  onCreateTodo,
   onCreateList,
   onDeleteList
 }: KanbanProps) {
@@ -29,6 +32,11 @@ export default function KanbanBoard({
   const [editReminder, setEditReminder] = useState<number | null>(null);
   const [newListTitle, setNewListTitle] = useState('');
   const [isAddingList, setIsAddingList] = useState(false);
+  const [addingTodoToList, setAddingTodoToList] = useState<string | null>(null);
+  const [newTodoText, setNewTodoText] = useState('');
+  const [newTodoReminder, setNewTodoReminder] = useState<number | null>(null);
+  const [creatingTodo, setCreatingTodo] = useState(false);
+  const [strikingIds, setStrikingIds] = useState<Set<string>>(() => new Set());
 
   const startEditing = (todo: Todo) => {
     setEditingId(todo.id);
@@ -52,6 +60,42 @@ export default function KanbanBoard({
       setNewListTitle('');
       setIsAddingList(false);
     }
+  };
+
+  const openTodoForm = (listId: string) => {
+    setAddingTodoToList(listId);
+    setNewTodoText('');
+    setNewTodoReminder(null);
+  };
+
+  const submitNewTodo = async (e: React.FormEvent, listId: string) => {
+    e.preventDefault();
+    const text = newTodoText.trim();
+    if (!text || creatingTodo) return;
+
+    setCreatingTodo(true);
+    try {
+      await onCreateTodo(listId, text, newTodoReminder);
+      setAddingTodoToList(null);
+      setNewTodoText('');
+      setNewTodoReminder(null);
+    } finally {
+      setCreatingTodo(false);
+    }
+  };
+
+  const toggleTodo = (todo: Todo) => {
+    if (!todo.archived) {
+      setStrikingIds((current) => new Set(current).add(todo.id));
+      window.setTimeout(() => {
+        setStrikingIds((current) => {
+          const next = new Set(current);
+          next.delete(todo.id);
+          return next;
+        });
+      }, LEVEL_UP_DURATION_MS);
+    }
+    onToggleComplete(todo.id, todo.archived);
   };
 
   const formatReminder = (ts: number) => {
@@ -100,6 +144,37 @@ export default function KanbanBoard({
                 </button>
               </div>
 
+              {addingTodoToList === list.id ? (
+                <form className="add-todo-form" onSubmit={(event) => void submitNewTodo(event, list.id)}>
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={newTodoText}
+                    onChange={(event) => setNewTodoText(event.target.value)}
+                    placeholder="Nome da missão"
+                    aria-label="Nome da nova missão"
+                    autoFocus
+                    required
+                  />
+                  <label className="new-todo-reminder">
+                    <Bell size={15} />
+                    <input
+                      type="datetime-local"
+                      className="edit-input"
+                      value={newTodoReminder ? new Date(newTodoReminder - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
+                      onChange={(event) => setNewTodoReminder(event.target.value ? new Date(event.target.value).getTime() : null)}
+                      aria-label="Lembrete da nova missão"
+                    />
+                  </label>
+                  <div className="new-todo-actions">
+                    <button type="button" className="text-button" onClick={() => setAddingTodoToList(null)}><X size={15} /> Cancelar</button>
+                    <button type="submit" className="rpg-button primary" disabled={creatingTodo || !newTodoText.trim()}><Save size={15} /> {creatingTodo ? 'Salvando…' : 'Criar missão'}</button>
+                  </div>
+                </form>
+              ) : (
+                <button className="add-todo-button" onClick={() => openTodoForm(list.id)}><Plus size={17} /> Nova missão</button>
+              )}
+
               <Droppable droppableId={list.id}>
                 {(provided, snapshot) => (
                   <div
@@ -113,7 +188,8 @@ export default function KanbanBoard({
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`todo-item kanban-card ${todo.archived ? 'completed' : ''} ${snapshot.isDragging ? 'is-dragging' : ''}`}
+                            className={`todo-item kanban-card ${todo.archived ? 'completed' : ''} ${strikingIds.has(todo.id) ? 'striking' : ''} ${snapshot.isDragging ? 'is-dragging' : ''}`}
+                            style={{ ...provided.draggableProps.style, '--strike-duration': `${LEVEL_UP_DURATION_MS}ms` } as React.CSSProperties}
                           >
                             <div className="kanban-card-drag-handle" {...provided.dragHandleProps}>
                               <GripVertical size={16} className="text-muted" />
@@ -121,7 +197,7 @@ export default function KanbanBoard({
 
                             <button
                               className="todo-checkbox"
-                              onClick={() => onToggleComplete(todo.id, todo.archived)}
+                              onClick={() => toggleTodo(todo)}
                             >
                               {todo.archived ? <CheckCircle size={22} className="text-success" /> : <Circle size={22} className="text-muted" />}
                             </button>
